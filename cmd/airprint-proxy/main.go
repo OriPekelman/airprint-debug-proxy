@@ -15,6 +15,7 @@ func main() {
 	// Command-line flag for the target
 	targetFlag := flag.String("target", "", "Target IP or DNS name to proxy AirPrint (IPP) requests")
 	portFlag := flag.String("port", "631", "Port to listen on for incoming AirPrint requests")
+	debugFlag := flag.Bool("debug", false, "Enable debug logging of all communication to debug.log")
 	flag.Parse()
 
 	if *targetFlag == "" {
@@ -23,7 +24,7 @@ func main() {
 	}
 
 	// Create the proxy server
-	proxy, err := internal.NewAirPrintProxy(*targetFlag, *portFlag)
+	proxy, err := internal.NewAirPrintProxy(*targetFlag, *portFlag, *debugFlag)
 	if err != nil {
 		log.Fatalf("Failed to create proxy: %v", err)
 	}

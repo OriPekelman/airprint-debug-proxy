@@ -13,13 +13,20 @@ import (
 
 // AirPrintProxy holds server settings and references
 type AirPrintProxy struct {
-	targetURL  string
-	port       string
-	httpServer *http.Server
+	targetURL   string
+	port        string
+	httpServer  *http.Server
+	debugLogger *DebugLogger
 }
 
 // NewAirPrintProxy creates a new proxy instance
-func NewAirPrintProxy(target, port string) (*AirPrintProxy, error) {
+func NewAirPrintProxy(target, port string, debug bool) (*AirPrintProxy, error) {
+	// Initialize debug logger
+	debugLogger, err := NewDebugLogger(debug)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create debug logger: %w", err)
+	}
+
 	// Convert the target to a URL
 	proxyURL, err := url.Parse(fmt.Sprintf("http://%s", target))
 	if err != nil {
@@ -36,7 +43,15 @@ func NewAirPrintProxy(target, port string) (*AirPrintProxy, error) {
 		clientIP, macAddr := getClientInfo(req)
 		log.Printf("[INFO] Received AirPrint request from IP: %s, MAC: %s", clientIP, macAddr)
 
+		// Log full request to debug file if enabled
+		debugLogger.LogRequest(req, clientIP, macAddr)
+
 		originalDirector(req)
+	}
+
+	// Add response logging
+	reverseProxy.ModifyResponse = func(resp *http.Response) error {
+		return debugLogger.LogResponse(resp)
 	}
 
 	mux := http.NewServeMux()
@@ -55,9 +70,10 @@ func NewAirPrintProxy(target, port string) (*AirPrintProxy, error) {
 	}
 
 	return &AirPrintProxy{
-		targetURL:  target,
-		port:       port,
-		httpServer: srv,
+		targetURL:   target,
+		port:        port,
+		httpServer:  srv,
+		debugLogger: debugLogger,
 	}, nil
 }
 
@@ -69,6 +85,11 @@ func (a *AirPrintProxy) Start() error {
 
 // Shutdown gracefully stops the server
 func (a *AirPrintProxy) Shutdown() error {
+	// Close debug logger if active
+	if a.debugLogger != nil {
+		a.debugLogger.Close()
+	}
+
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	return a.httpServer.Shutdown(ctx)
