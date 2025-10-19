@@ -19,7 +19,7 @@ func main() {
 	flag.Parse()
 
 	if *targetFlag == "" {
-		fmt.Println("Usage: airprint-proxy -target=<IP or DNS> [-port=<port>]")
+		fmt.Println("Usage: airprint-proxy -target=<IP or DNS> [-port=<port>] [-debug>]")
 		os.Exit(1)
 	}
 
